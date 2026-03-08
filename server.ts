@@ -177,8 +177,8 @@ app.post("/api/compare-faces", authenticate, async (req: any, res: any) => {
         "X-Title": "ChildGuard Face Matcher", // Required by OpenRouter
       },
       body: JSON.stringify({
-        // We use the free experimental Gemini 2.0 Flash model via OpenRouter
-        model: "google/gemini-2.0-flash-exp:free",
+        // We use the available free Gemini 2.0 Flash Lite model via OpenRouter
+        model: "google/gemini-2.0-flash-lite-preview-02-05:free",
         response_format: { type: "json_object" },
         messages: [
           {
