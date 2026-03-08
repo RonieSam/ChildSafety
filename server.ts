@@ -157,39 +157,58 @@ app.post("/api/compare-faces", authenticate, async (req: any, res: any) => {
     return res.status(400).json({ error: "Two images required" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     // Graceful demo fallback when no key is set
     const score = Math.floor(Math.random() * 60) + 20;
     return res.json({
       confidence_score: score,
-      analysis: `Demo mode (GEMINI_API_KEY not set): Simulated ${score}% similarity score.`,
+      analysis: `Demo mode (OPENROUTER_API_KEY not set): Simulated ${score}% similarity score.`,
     });
   }
 
   try {
-    const { GoogleGenAI } = await import("@google/genai");
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{
-        parts: [
-          { text: `You are a professional facial recognition expert. Compare these two images of children. Determine if they could be the same child. Return ONLY valid JSON with keys "confidence_score" (number 0-100) and "analysis" (string describing facial features compared).` },
-          { inlineData: { mimeType: "image/jpeg", data: image1Base64 } },
-          { inlineData: { mimeType: "image/jpeg", data: image2Base64 } },
-        ],
-      }],
-      config: { responseMimeType: "application/json" },
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://childguard.railway.app", // Required by OpenRouter
+        "X-Title": "ChildGuard Face Matcher", // Required by OpenRouter
+      },
+      body: JSON.stringify({
+        // We use the free experimental Gemini 2.0 Flash model via OpenRouter
+        model: "google/gemini-2.0-flash-exp:free",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `You are a professional facial recognition expert. Compare these two images of children. Determine if they could be the same child. Return ONLY valid JSON with keys "confidence_score" (number 0-100) and "analysis" (string describing facial features compared).` },
+              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image1Base64}` } },
+              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image2Base64}` } }
+            ]
+          }
+        ]
+      })
     });
-    const text = (response.text || "{}").replace(/```json|```/g, "").trim();
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const text = data.choices[0].message.content.replace(/```json|```/g, "").trim();
     const result = JSON.parse(text);
+    
     res.json({
       confidence_score: result.confidence_score || 0,
       analysis: result.analysis || "No analysis provided.",
     });
   } catch (error: any) {
-    console.error("Gemini API Error:", error?.message || error);
-    res.status(500).json({ confidence_score: 0, analysis: "AI matching failed. Check GEMINI_API_KEY." });
+    console.error("OpenRouter API Error:", error?.message || error);
+    res.status(500).json({ confidence_score: 0, analysis: "AI matching failed. Check OPENROUTER_API_KEY." });
   }
 });
 

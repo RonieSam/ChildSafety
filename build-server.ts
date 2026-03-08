@@ -5,7 +5,7 @@ import { mkdirSync } from "fs";
 mkdirSync("dist-server", { recursive: true });
 
 execSync(
-  `npx esbuild server.ts --bundle --format=esm --platform=node --target=node20 --outfile=dist-server/server.js --external:better-sqlite3 --external:bcryptjs --external:express --external:jsonwebtoken --external:multer --external:cors --external:@google/genai --external:vite --external:lightningcss --external:dotenv`,
+  `npx esbuild server.ts --bundle --format=esm --platform=node --target=node20 --outfile=dist-server/server.js --external:better-sqlite3 --external:bcryptjs --external:express --external:jsonwebtoken --external:multer --external:cors --external:vite --external:lightningcss --external:dotenv`,
   { stdio: "inherit" }
 );
 
