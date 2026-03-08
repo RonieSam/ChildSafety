@@ -7,9 +7,14 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import multer from "multer";
 import cors from "cors";
+import dotenv from "dotenv";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load local environment variables (important for OPENROUTER_API_KEY)
+dotenv.config({ path: path.join(__dirname, ".env.local") });
+dotenv.config(); // fallback to .env if .env.local doesn't exist
 
 const DB_PATH = process.env.NODE_ENV === "production"
   ? "/tmp/childguard.db"
@@ -177,8 +182,8 @@ app.post("/api/compare-faces", authenticate, async (req: any, res: any) => {
         "X-Title": "ChildGuard Face Matcher", // Required by OpenRouter
       },
       body: JSON.stringify({
-        // We use the available free Gemini 2.0 Flash Lite model via OpenRouter
-        model: "google/gemini-2.0-flash-lite-preview-02-05:free",
+        // We use NVIDIA's free Vision model via OpenRouter since all free Gemini models were removed today
+        model: "nvidia/nemotron-nano-12b-v2-vl:free",
         response_format: { type: "json_object" },
         messages: [
           {
@@ -199,8 +204,13 @@ app.post("/api/compare-faces", authenticate, async (req: any, res: any) => {
     }
 
     const data = await response.json();
+    console.log("OpenRouter raw response:", JSON.stringify(data, null, 2));
+
     const text = data.choices[0].message.content.replace(/```json|```/g, "").trim();
+    console.log("OpenRouter parsed text:", text);
+    
     const result = JSON.parse(text);
+    console.log("Final matched score:", result.confidence_score);
     
     res.json({
       confidence_score: result.confidence_score || 0,
