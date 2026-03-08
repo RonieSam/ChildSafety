@@ -5,10 +5,7 @@ nixPkgs = ["nodejs_20", "python3"]
 cmds = ["npm install"]
 
 [phases.build]
-cmds = [
-  "npm run build",
-  "npx esbuild server.ts --bundle --platform=node --target=node18 --outfile=dist-server/server.js --external:better-sqlite3 --external:bcryptjs --external:express --external:jsonwebtoken --external:multer --external:cors --external:@google/genai"
-]
+cmds = ["npm run build"]
 
 [start]
 cmd = "NODE_ENV=production node dist-server/server.js"

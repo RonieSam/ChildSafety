@@ -16,7 +16,7 @@ const DB_PATH = process.env.NODE_ENV === "production"
   : path.join(__dirname, "childguard.db");
 
 const db = new Database(DB_PATH);
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "childguard-demo-secret-key";
 
 db.exec(`
@@ -204,7 +204,7 @@ app.get("/api/stats", authenticate, (req, res) => {
 });
 
 // Serve React build in production
-const distPath = path.join(__dirname, "../dist");
+const distPath = path.resolve(__dirname, "../dist");
 if (process.env.NODE_ENV === "production") {
   if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
