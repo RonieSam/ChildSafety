@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
-import { Plus, Camera, MapPin, Calendar, User as UserIcon, X, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Camera, MapPin, Calendar, User as UserIcon, X, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { MissingChild } from "../types";
+import { MissingChild, FoundChild } from "../types";
+import { compareFaces } from "../services/geminiService";
 
 export default function MissingChildren() {
   const [children, setChildren] = useState<MissingChild[]>([]);
   const [isModalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [matchingStatus, setMatchingStatus] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -28,9 +30,19 @@ export default function MissingChildren() {
     setChildren(data);
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setMatchingStatus("Uploading record...");
 
     const data = new FormData();
     data.append("name", formData.name);
@@ -46,8 +58,52 @@ export default function MissingChildren() {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         body: data,
       });
+      const missingChild = await res.json();
 
-      if (res.ok) {
+      if (res.ok && file) {
+        setMatchingStatus("Initiating AI Matching against Found Records...");
+        const foundRes = await fetch("/api/found-children", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
+        const foundChildren: FoundChild[] = await foundRes.json();
+        
+        const missingImageBase64 = await fileToBase64(file);
+
+        for (const found of foundChildren) {
+          if (!found.photo_url) continue;
+          
+          setMatchingStatus(`Comparing with Found Child from ${found.location}...`);
+          try {
+            const imgRes = await fetch(found.photo_url);
+            const blob = await imgRes.blob();
+            const foundImageBase64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            });
+
+            const matchResult = await compareFaces(missingImageBase64, foundImageBase64);
+            
+            if (matchResult.confidence_score > 30) {
+              await fetch("/api/matches", {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${localStorage.getItem("token")}` 
+                },
+                body: JSON.stringify({
+                  missing_child_id: missingChild.id,
+                  found_child_id: found.id,
+                  confidence_score: matchResult.confidence_score,
+                  ai_analysis: matchResult.analysis
+                })
+              });
+            }
+          } catch (err) {
+            console.error(`Failed to compare with found child:`, err);
+          }
+        }
+
         setModalOpen(false);
         fetchChildren();
         setFormData({ name: "", age: "", gender: "Male", location: "", description: "" });
@@ -57,6 +113,7 @@ export default function MissingChildren() {
       console.error(err);
     } finally {
       setLoading(false);
+      setMatchingStatus("");
     }
   };
 
@@ -127,8 +184,23 @@ export default function MissingChildren() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden relative"
             >
+              {loading && (
+                <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center">
+                  <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Processing...</h3>
+                  <p className="text-slate-500 font-medium">{matchingStatus}</p>
+                  <div className="mt-8 w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-emerald-600"
+                      animate={{ x: ["-100%", "100%"] }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
-                onClick={() => setModalOpen(false)}
+                onClick={() => !loading && setModalOpen(false)}
                 className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors z-10"
               >
                 <X className="w-6 h-6 text-slate-400" />
@@ -229,12 +301,19 @@ export default function MissingChildren() {
                     />
                   </div>
 
+                  <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex gap-3">
+                    <AlertCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <p className="text-xs text-emerald-700 leading-relaxed">
+                      <strong>AI Matching Notice:</strong> Upon submission, our system will compare this photo against all found child reports. This process may take a few moments.
+                    </p>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading}
                     className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2"
                   >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Register Missing Report"}
+                    {loading ? "Registering & Analzing..." : "Register Missing Report"}
                   </button>
                 </form>
               </div>

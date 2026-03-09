@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, AlertCircle, ExternalLink, Info, Loader2, X } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, ExternalLink, Info, Loader2, X, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { MatchResult } from "../types";
 
@@ -8,6 +8,7 @@ export default function Matches() {
   const [loading, setLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<MatchResult | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
 
   useEffect(() => {
     fetchMatches();
@@ -20,6 +21,36 @@ export default function Matches() {
     const data = await res.json();
     setMatches(data);
     setLoading(false);
+  };
+
+  const handleRetryAnalysis = async (id: number) => {
+    setRetryLoading(true);
+    try {
+      const res = await fetch(`/api/matches/${id}/retry`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const updatedMatch = data.result;
+        
+        // Refresh background list
+        fetchMatches(); 
+        
+        // Update currently viewed match
+        if (selectedMatch) {
+          setSelectedMatch({
+            ...selectedMatch,
+            confidence_score: updatedMatch.confidence_score,
+            ai_analysis: updatedMatch.analysis
+          });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRetryLoading(false);
+    }
   };
 
   const handleStatusUpdate = async (id: number, status: 'APPROVED' | 'REJECTED') => {
@@ -207,6 +238,14 @@ export default function Matches() {
                   >
                     <XCircle className="w-5 h-5" />
                     Reject Match
+                  </button>
+                  <button
+                    disabled={retryLoading}
+                    onClick={() => handleRetryAnalysis(selectedMatch.id)}
+                    className="flex-1 bg-white border border-slate-200 hover:bg-blue-50 hover:border-blue-200 text-slate-600 hover:text-blue-600 font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2"
+                  >
+                    {retryLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                    Retry Analysis
                   </button>
                   <button
                     disabled={actionLoading}

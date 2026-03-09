@@ -39,8 +39,16 @@ The AI features of this app require a free code (API key) from OpenRouter.
 3. Open `.env.local` using Notepad (or any text editor).
 4. Inside the file, type this exactly, but replace "YOUR_KEY_HERE" with the key you just copied:
    ```env
-   VITE_OPENROUTER_API_KEY=YOUR_KEY_HERE
+   OPENROUTER_API_KEY=YOUR_KEY_HERE
    ```
+
+   ```
+   JWT_SECRET=some-random-string
+   ```
+
+
+   Add this as it is if not there
+
 5. Save the file and close it.
 
 ### Step 6: Start the App!
