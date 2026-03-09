@@ -85,7 +85,7 @@ Railway doesn't know your secret OpenRouter API key yet.
 1. Click on your newly added project box in Railway.
 2. Go to the **Variables** tab at the top.
 3. Click **New Variable** (or just type in the boxes).
-4. Put `VITE_OPENROUTER_API_KEY` for the VARIABLE NAME.
+4. Put `OPENROUTER_API_KEY` for the VARIABLE NAME.
 5. Put your actual key for the VALUE.
 6. Click **Add**.
 

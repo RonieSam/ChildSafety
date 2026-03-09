@@ -157,7 +157,7 @@ app.patch("/api/matches/:id", authenticate, isAdmin, (req, res) => {
 
 // AI Face Comparison Helper
 async function analyzeFaces(image1Base64: string, image2Base64: string) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
   if (!apiKey) {
     const score = Math.floor(Math.random() * 60) + 20;
     return {
